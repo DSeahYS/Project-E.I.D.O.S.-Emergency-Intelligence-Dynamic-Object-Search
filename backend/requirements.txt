@@ -16,3 +16,4 @@ pycocotools
 psutil
 ftfy
 regex
+python-multipart

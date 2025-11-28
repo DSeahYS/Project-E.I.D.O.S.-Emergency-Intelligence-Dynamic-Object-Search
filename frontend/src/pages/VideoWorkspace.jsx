@@ -3,14 +3,64 @@ import { Search, Upload, Play, Image as ImageIcon, ArrowRight, Target, Crosshair
 
 const VideoWorkspace = () => {
     const [searchQuery, setSearchQuery] = useState('');
+    const [mediaUrl, setMediaUrl] = useState(null);
+    const [processedImage, setProcessedImage] = useState(null);
+    const fileInputRef = React.useRef(null);
+    const [isTargetLocked, setIsTargetLocked] = useState(false);
+    const [isProcessing, setIsProcessing] = useState(false);
+
+    const handleFileUpload = (event) => {
+        const file = event.target.files[0];
+        if (file) {
+            const url = URL.createObjectURL(file);
+            setMediaUrl(url);
+            setProcessedImage(null); // Reset previous result
+            setIsTargetLocked(false);
+        }
+    };
+
+    const handleSearchSubmit = async (e) => {
+        if (e.key === 'Enter' || e.type === 'click') {
+            if (searchQuery.trim() && mediaUrl) {
+                setIsTargetLocked(true);
+                setIsProcessing(true);
+
+                try {
+                    // Fetch the blob from the object URL
+                    const response = await fetch(mediaUrl);
+                    const blob = await response.blob();
+
+                    // Create form data
+                    const formData = new FormData();
+                    formData.append('file', blob, 'upload.jpg');
+                    formData.append('prompt', searchQuery);
+
+                    // Call Backend
+                    const apiRes = await fetch('http://localhost:8000/analyze', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const data = await apiRes.json();
+                    if (data.status === 'success' && data.image) {
+                        setProcessedImage(data.image);
+                    }
+                } catch (error) {
+                    console.error("Analysis failed:", error);
+                } finally {
+                    setIsProcessing(false);
+                }
+            }
+        }
+    };
 
     return (
         <div className="flex flex-1 h-full overflow-hidden relative">
-            {/* HUD Overlay Grid */}
+            {/* HUD Overlay Grid - Dot Pattern */}
             <div className="absolute inset-0 pointer-events-none z-0"
                 style={{
-                    backgroundImage: 'linear-gradient(rgba(0, 243, 255, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 243, 255, 0.05) 1px, transparent 1px)',
-                    backgroundSize: '100px 100px'
+                    backgroundImage: 'radial-gradient(rgba(0, 243, 255, 0.1) 1px, transparent 1px)',
+                    backgroundSize: '40px 40px'
                 }}>
             </div>
 
@@ -27,11 +77,11 @@ const VideoWorkspace = () => {
 
                     <div className="flex flex-col gap-md">
                         {[
-                            { step: '01', label: 'UPLOAD FOOTAGE', status: 'WAITING' },
-                            { step: '02', label: 'DESIGNATE TARGETS', status: 'PENDING' },
-                            { step: '03', label: 'APPLY EFFECTS', status: 'LOCKED' }
+                            { step: '01', label: 'UPLOAD FOOTAGE', status: mediaUrl ? 'COMPLETE' : 'WAITING' },
+                            { step: '02', label: 'DESIGNATE TARGETS', status: isTargetLocked ? 'LOCKED' : 'PENDING' },
+                            { step: '03', label: 'APPLY EFFECTS', status: processedImage ? 'COMPLETE' : (isTargetLocked ? 'PROCESSING' : 'LOCKED') }
                         ].map((item, i) => (
-                            <div key={i} className="flex items-center gap-sm p-2 border border-color bg-black/40 hover:bg-neon-cyan/10 transition-colors cursor-pointer group">
+                            <div key={i} className={`flex items-center gap-sm p-2 border border-color transition-colors cursor-pointer group ${item.status === 'COMPLETE' || item.status === 'LOCKED' ? 'bg-neon-cyan/20 border-neon-cyan' : 'bg-black/40 hover:bg-neon-cyan/10'}`}>
                                 <span className="text-xs font-bold font-mono text-neon group-hover:text-white">{item.step}</span>
                                 <div className="flex flex-col">
                                     <span className="text-sm font-bold text-white group-hover:text-neon">{item.label}</span>
@@ -63,14 +113,16 @@ const VideoWorkspace = () => {
                                 <Crosshair size={14} /> Target Designation
                             </h3>
                             <div className="relative">
-                                <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neon" />
+                                <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neon cursor-pointer hover:text-white transition-colors" onClick={handleSearchSubmit} />
                                 <input
                                     type="text"
                                     placeholder="ENTER TARGET DESCRIPTION..."
-                                    className="w-full bg-black border border-color rounded-none px-3 py-2 pl-9 text-sm text-white font-mono focus:outline-none focus:border-neon-cyan placeholder-gray-600 uppercase"
+                                    className="w-full bg-black border border-color rounded-none px-3 py-2 pl-9 pr-8 text-sm text-white font-mono focus:outline-none focus:border-neon-cyan placeholder-gray-600 uppercase"
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
+                                    onKeyDown={handleSearchSubmit}
                                 />
+                                <ArrowRight size={16} className={`absolute right-3 top-1/2 transform -translate-y-1/2 transition-colors cursor-pointer ${searchQuery ? 'text-neon hover:text-white' : 'text-gray-600'}`} onClick={handleSearchSubmit} />
                             </div>
                         </div>
                     </div>
@@ -84,17 +136,51 @@ const VideoWorkspace = () => {
                     <div className="absolute bottom-4 left-4 w-8 h-8 border-b-2 border-l-2 border-neon-cyan"></div>
                     <div className="absolute bottom-4 right-4 w-8 h-8 border-b-2 border-r-2 border-neon-cyan"></div>
 
-                    <div className="border border-color w-full h-full flex flex-col items-center justify-center gap-md bg-black/60 backdrop-blur-sm relative group">
-                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                            <Aperture size={200} className="text-neon-cyan opacity-10 animate-spin-slow" />
-                        </div>
+                    <div className="border border-color w-full h-full flex flex-col items-center justify-center gap-md bg-black/60 backdrop-blur-sm relative group overflow-hidden">
+                        {mediaUrl ? (
+                            <div className="relative w-full h-full">
+                                <img src={mediaUrl} alt="Uploaded Footage" className="w-full h-full object-contain" />
+                                {processedImage && (
+                                    <img
+                                        src={processedImage}
+                                        alt="Processed Result"
+                                        className="absolute inset-0 w-full h-full object-contain pointer-events-none animate-pulse-slow"
+                                        style={{ mixBlendMode: 'screen' }}
+                                    />
+                                )}
+                                {isProcessing && (
+                                    <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-20">
+                                        <div className="flex flex-col items-center gap-4">
+                                            <Aperture size={64} className="text-neon-cyan animate-spin" />
+                                            <span className="text-neon font-mono tracking-widest animate-pulse">ANALYZING TARGET...</span>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <>
+                                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                                    <Aperture size={200} className="text-neon-cyan opacity-10 animate-spin-slow" />
+                                </div>
 
-                        <ImageIcon size={48} className="text-secondary opacity-50" />
-                        <h3 className="text-lg font-medium font-mono text-neon tracking-widest">NO SIGNAL INPUT</h3>
-                        <button className="btn mt-4 flex items-center gap-2">
-                            <Upload size={16} />
-                            INITIALIZE UPLOAD
-                        </button>
+                                <ImageIcon size={48} className="text-secondary opacity-50" />
+                                <h3 className="text-lg font-medium font-mono text-neon tracking-widest">NO SIGNAL INPUT</h3>
+                                <input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    className="hidden"
+                                    accept="image/*,video/*"
+                                    onChange={handleFileUpload}
+                                />
+                                <button
+                                    className="btn mt-4 flex items-center gap-2"
+                                    onClick={() => fileInputRef.current.click()}
+                                >
+                                    <Upload size={16} />
+                                    INITIALIZE UPLOAD
+                                </button>
+                            </>
+                        )}
                     </div>
                 </div>
 

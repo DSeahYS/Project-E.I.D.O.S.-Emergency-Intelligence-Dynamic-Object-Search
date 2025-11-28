@@ -35,8 +35,14 @@ async def root():
         "model_loaded": engine.ready if engine else False
     }
 
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+# ... (imports)
+
 @app.post("/analyze")
-async def analyze_image(file: UploadFile = File(...)):
+async def analyze_image(
+    file: UploadFile = File(...),
+    prompt: str = Form(...)
+):
     if not engine:
         raise HTTPException(status_code=503, detail="Engine not initialized")
     
@@ -47,7 +53,7 @@ async def analyze_image(file: UploadFile = File(...)):
         
     try:
         # Process with SAM 3
-        result = engine.process_image(temp_path)
+        result = engine.process_image(temp_path, prompt)
         return result
     finally:
         # Cleanup
