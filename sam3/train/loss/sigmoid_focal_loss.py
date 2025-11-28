@@ -3,9 +3,26 @@
 """Triton kernel for faster and memory efficient sigmoid focal loss"""
 
 import torch
-import triton
-import triton.language as tl
-from torch._inductor.runtime.triton_helpers import libdevice
+try:
+    import triton
+    import triton.language as tl
+    from torch._inductor.runtime.triton_helpers import libdevice
+except ImportError:
+    class MockTriton:
+        @staticmethod
+        def jit(fn):
+            return fn
+        @staticmethod
+        def cdiv(a, b):
+            return (a + b - 1) // b
+    
+    class MockTL:
+        constexpr = int
+        float32 = float
+        
+    triton = MockTriton()
+    tl = MockTL()
+    libdevice = None
 
 """
 

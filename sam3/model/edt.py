@@ -3,8 +3,21 @@
 """Triton kernel for euclidean distance transform (EDT)"""
 
 import torch
-import triton
-import triton.language as tl
+import torch
+try:
+    import triton
+    import triton.language as tl
+except ImportError:
+    class MockTriton:
+        @staticmethod
+        def jit(fn):
+            return fn
+            
+    class MockTL:
+        constexpr = int
+        
+    triton = MockTriton()
+    tl = MockTL()
 
 """
 Disclaimer: This implementation is not meant to be extremely efficient. A CUDA kernel would likely be more efficient.
