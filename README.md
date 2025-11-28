@@ -11,6 +11,8 @@
 *   **Real-Time Telemetry**: Simulated system status, network latency, and operational metrics.
 *   **Video Workspace**: A dedicated "Target Acquisition" module for analyzing video feeds with frame-by-frame precision.
 
+<img width="1024" height="559" alt="image" src="https://github.com/user-attachments/assets/d3c24db1-dda9-49c7-ac74-e9a2afbdce1f" />
+
 ## 🛠️ Architecture
 
 The project consists of two main components:
