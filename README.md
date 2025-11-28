@@ -13,6 +13,10 @@
 
 <img width="1024" height="559" alt="image" src="https://github.com/user-attachments/assets/d3c24db1-dda9-49c7-ac74-e9a2afbdce1f" />
 
+<img width="2030" height="775" alt="image" src="https://github.com/user-attachments/assets/ec058762-6d87-4649-82e9-eba283ecbd00" />
+#into
+<img width="845" height="628" alt="image" src="https://github.com/user-attachments/assets/e7b0f757-d438-4b13-b1af-ecced8a2a362" />
+
 ## 🛠️ Architecture
 
 The project consists of two main components:
