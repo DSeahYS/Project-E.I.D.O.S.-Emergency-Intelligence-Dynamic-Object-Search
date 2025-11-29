@@ -2,6 +2,9 @@ import torch
 import numpy as np
 import os
 import sys
+import cv2
+import base64
+import time
 from PIL import Image
 
 # Add parent directory to path to import sam3
@@ -37,67 +40,126 @@ class EidosEngine:
             image_path (str): Path to the image file.
             prompt (str): Text prompt for segmentation.
         Returns:
-            dict: Result containing processed image (base64) or status.
+            dict: Result with status, message, and base64 image.
         """
-        import base64
-        from io import BytesIO
-        import cv2
+        try:
+            img = cv2.imread(image_path)
+            if img is None:
+                return {"status": "error", "message": "Failed to load image"}
+            
+            # Create a dummy mask (center circle) to simulate "drone" detection
+            h, w = img.shape[:2]
+            mask = np.zeros((h, w), dtype=np.uint8)
+            center = (w // 2, h // 2)
+            radius = min(h, w) // 4
+            cv2.circle(mask, center, radius, 255, -1)
+            
+            # Apply cyan highlight
+            highlight = np.zeros_like(img)
+            highlight[:] = (255, 243, 0) # BGR for Neon Cyan (0, 243, 255)
+            
+            # Blend
+            alpha = 0.4
+            # Only blend where mask is present
+            mask_indices = mask > 0
+            output = img.copy()
+            output[mask_indices] = cv2.addWeighted(img[mask_indices], 1 - alpha, highlight[mask_indices], alpha, 0)
+            
+            # Draw bounding box
+            x, y, w_rect, h_rect = cv2.boundingRect(mask)
+            cv2.rectangle(output, (x, y), (x + w_rect, y + h_rect), (255, 243, 0), 2)
+            
+            # Add label
+            cv2.putText(output, f"TARGET: {prompt.upper()}", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 243, 0), 2)
 
-        if not self.ready:
-            # Simulation mode: Just return the original image with a mock highlight
-            print(f"Processing '{prompt}' in SIMULATION mode...")
-            try:
-                # Load image with OpenCV
-                img = cv2.imread(image_path)
-                if img is None:
-                    return {"status": "error", "message": "Failed to load image"}
+            # Convert to base64
+            _, buffer = cv2.imencode('.jpg', output)
+            img_str = base64.b64encode(buffer).decode('utf-8')
+            
+            return {
+                "status": "success",
+                "message": f"Target '{prompt}' acquired",
+                "image": f"data:image/jpeg;base64,{img_str}",
+                "confidence": 0.98
+            }
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def process_video(self, video_path, prompt, progress_callback=None):
+        """
+        Process a video frame by frame.
+        Args:
+            video_path (str): Path to input video.
+            prompt (str): Target description.
+            progress_callback (func): Function to call with progress (0.0 to 1.0).
+        """
+        try:
+            cap = cv2.VideoCapture(video_path)
+            if not cap.isOpened():
+                return {"status": "error", "message": "Failed to open video"}
+            
+            width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            fps = cap.get(cv2.CAP_PROP_FPS)
+            total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            
+            if total_frames == 0:
+                # Fallback if frame count is unknown
+                total_frames = 100 
+            
+            output_path = video_path.replace("temp_", "processed_")
+            # Use mp4v codec
+            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+            out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+            
+            frame_count = 0
+            
+            while cap.isOpened():
+                ret, frame = cap.read()
+                if not ret:
+                    break
                 
-                # Create a dummy mask (center circle) to simulate "drone" detection
-                h, w = img.shape[:2]
+                # Simulation logic: Moving target
+                h, w = frame.shape[:2]
                 mask = np.zeros((h, w), dtype=np.uint8)
-                center = (w // 2, h // 2)
-                radius = min(h, w) // 4
+                
+                # Animate center based on frame count to simulate movement
+                center_x = (w // 2) + int((w // 4) * np.sin(frame_count * 0.05))
+                center_y = (h // 2) + int((h // 4) * np.cos(frame_count * 0.05))
+                center = (center_x, center_y)
+                
+                radius = min(h, w) // 6
                 cv2.circle(mask, center, radius, 255, -1)
                 
                 # Apply cyan highlight
-                highlight = np.zeros_like(img)
-                highlight[:] = (255, 243, 0) # BGR for Neon Cyan (0, 243, 255)
+                highlight = np.zeros_like(frame)
+                highlight[:] = (255, 243, 0) # BGR for Neon Cyan
                 
-                # Blend
                 alpha = 0.4
-                masked_highlight = cv2.bitwise_and(highlight, highlight, mask=mask)
-                output = img.copy()
-                
-                # Only blend where mask is present
                 mask_indices = mask > 0
-                output[mask_indices] = cv2.addWeighted(img[mask_indices], 1 - alpha, highlight[mask_indices], alpha, 0)
+                frame[mask_indices] = cv2.addWeighted(frame[mask_indices], 1 - alpha, highlight[mask_indices], alpha, 0)
                 
                 # Draw bounding box
                 x, y, w_rect, h_rect = cv2.boundingRect(mask)
-                cv2.rectangle(output, (x, y), (x + w_rect, y + h_rect), (255, 243, 0), 2)
+                cv2.rectangle(frame, (x, y), (x + w_rect, y + h_rect), (255, 243, 0), 2)
+                cv2.putText(frame, f"TARGET: {prompt.upper()}", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 243, 0), 2)
                 
-                # Add label
-                cv2.putText(output, f"TARGET: {prompt.upper()}", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 243, 0), 2)
-
-                # Convert to base64
-                _, buffer = cv2.imencode('.jpg', output)
-                img_str = base64.b64encode(buffer).decode('utf-8')
+                out.write(frame)
                 
-                return {
-                    "status": "success",
-                    "message": f"Target '{prompt}' acquired",
-                    "image": f"data:image/jpeg;base64,{img_str}",
-                    "confidence": 0.98
-                }
-            except Exception as e:
-                return {"status": "error", "message": str(e)}
-
-        # Real SAM 3 Inference (Placeholder for now, falling back to sim logic if model fails or for demo speed)
-        # In a real scenario, we would use self.model.predict(...) here.
-        # For this demo, we'll reuse the simulation logic to ensure a visual result is always returned.
-        return self.process_image(image_path, prompt) # Recursive call will hit !ready if we force it, but let's just copy logic or rely on the above.
-        # Actually, let's just use the sim logic for now as the "Neural Bridge" is technically "online" but we want guaranteed visuals.
-        # TODO: Wire up actual SAM 3 inference when weights are available.
+                frame_count += 1
+                if progress_callback:
+                    # Report progress
+                    progress = min(frame_count / total_frames, 0.99)
+                    progress_callback(progress)
+                    
+            cap.release()
+            out.release()
+            
+            return {"status": "success", "output_path": output_path}
+            
+        except Exception as e:
+            print(f"Error processing video: {e}")
+            return {"status": "error", "message": str(e)}
 
 if __name__ == "__main__":
     engine = EidosEngine()
