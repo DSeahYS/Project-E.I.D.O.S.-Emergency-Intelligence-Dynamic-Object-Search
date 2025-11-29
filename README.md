@@ -8,16 +8,24 @@
 
 *   **Neural Bridge Engine**: A custom Python backend wrapping the official Meta SAM 3 model for real-time inference.
 *   **Tactical HUD Interface**: A futuristic, sci-fi inspired frontend built with React, Vite, and Tailwind CSS.
+*   **Video Analysis**: Full support for `.mp4` video uploads with frame-by-frame processing and real-time progress tracking.
+*   **Cinematic Mode**: "Toggle Telemetry" feature to hide HUD elements for a clean, unobstructed view of the processed footage.
 *   **Real-Time Telemetry**: Simulated system status, network latency, and operational metrics.
-*   **Video Workspace**: A dedicated "Target Acquisition" module for analyzing video feeds with frame-by-frame precision.
 
-<img width="1024" height="559" alt="image" src="https://github.com/user-attachments/assets/d3c24db1-dda9-49c7-ac74-e9a2afbdce1f" />
+![Command Center](assets/screenshots/dashboard.png)
 
-<img width="2030" height="775" alt="image" src="https://github.com/user-attachments/assets/ec058762-6d87-4649-82e9-eba283ecbd00" />
+## 🎥 Video Intelligence
 
-## into
+The system now includes a dedicated **Video Workspace** for analyzing dynamic footage.
 
-<img width="845" height="628" alt="image" src="https://github.com/user-attachments/assets/e7b0f757-d438-4b13-b1af-ecced8a2a362" />
+*   **Async Processing**: Videos are processed in the background without freezing the UI.
+*   **Progress Tracking**: Watch the analysis progress in real-time.
+*   **Target Designation**: Specify targets (e.g., "drone", "vehicle") for automated highlighting.
+
+![Video Workspace](assets/screenshots/video_ui.png)
+
+### Cinematic Mode (Telemetry Off)
+![Cinematic Mode](assets/screenshots/cinematic_mode.png)
 
 ## 🛠️ Architecture
 
@@ -29,7 +37,7 @@ The project consists of two main components:
     *   **Theme**: "Deep Space" dark mode with Neon Cyan accents and CRT scanline effects.
 
 2.  **Backend (`/backend`)**:
-    *   **Tech Stack**: Python, FastAPI, PyTorch, Meta SAM 3.
+    *   **Tech Stack**: Python, FastAPI, PyTorch, Meta SAM 3, OpenCV.
     *   **Role**: The "Neural Bridge". It loads the heavy SAM 3 model into memory and exposes endpoints for image/video analysis.
     *   **Integration**: Directly imports the `sam3` codebase (patched for Windows compatibility).
 
@@ -73,11 +81,13 @@ npm run dev
 1.  **Launch Mission Control**: Open the frontend in your browser.
 2.  **Check Status**: Verify that the "NEURAL BRIDGE" status in the top right corner says **ONLINE**.
 3.  **Target Acquisition**: Click on the "TARGET ACQUISITION" card to enter the Video Workspace.
-4.  **Analyze**: Upload footage and use the HUD tools to designate targets.
+4.  **Analyze**: Upload footage (`.mp4` or images) and use the HUD tools to designate targets.
+5.  **Cinematic Mode**: Click "TOGGLE TELEMETRY" to hide the UI for a better view of the results.
 
 ## 🔧 Troubleshooting
 
 *   **"Neural Bridge: OFFLINE"**: Ensure the backend server is running on port 8000.
+*   **Video Stuck at 0%**: Ensure you have the latest backend code with the `process_video` method in `engine.py`.
 *   **SAM 3 Import Errors**: The backend includes patches for Windows compatibility (bypassing Triton). If you are on Linux, you can remove these patches in `sam3/train/loss/sigmoid_focal_loss.py`.
 
 ## 📜 License
