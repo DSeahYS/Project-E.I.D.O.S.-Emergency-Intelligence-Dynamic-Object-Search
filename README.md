@@ -16,6 +16,8 @@
 
 <img width="2030" height="775" alt="image" src="https://github.com/user-attachments/assets/ec058762-6d87-4649-82e9-eba283ecbd00" />
 
+<img width="845" height="614" alt="image" src="https://github.com/user-attachments/assets/02c671ee-c0ff-4955-be04-5456f77c6cd3" />
+
 ## 🎥 Video Intelligence
 
 The system now includes a dedicated **Video Workspace** for analyzing dynamic footage.
